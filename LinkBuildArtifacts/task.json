@@ -1,0 +1,52 @@
+{
+    "id": "63c34c37-cbb2-48f0-8aec-51fd223ab29b",
+    "name": "LinkBuildArtifacts",
+    "friendlyName": "Link Build Artifacts",
+    "description": "Creates hardlinks and junctions to fileshare build artifacts that are on the same machine",
+    "helpMarkDown": "",
+    "category": "Utility",
+    "author": "Ahmed Makhdoom",
+    "version": {
+        "Major": 0,
+        "Minor": 0,
+        "Patch": 14
+    },
+    "groups": [
+        {
+            "name": "advanced",
+            "displayName": "Advanced",
+            "isExpanded": false
+        }
+    ],
+    "inputs": [
+        {
+            "name": "destinationDir",
+            "type": "filePath",
+            "label": "Destination path",
+            "defaultValue": "$(System.ArtifactsDirectory)",
+            "required": false,
+            "helpMarkDown": "Destination directory to create links in, e.g. `$(System.ArtifactsDirectory)`"
+        },
+        {
+            "name": "artifactNameRegex",
+            "type": "string",
+            "label": "Artifact name pattern",
+            "defaultValue": "",
+            "required": false,
+            "helpMarkDown": "Regular expression to filter artifacts by their name, e.g. `(artifact1|artifact2)`. The expression is case-inensitive"
+        },        
+        {
+            "name": "cleanDestinationDir",
+            "type": "boolean",
+            "label": "Clean",
+            "defaultValue": "false",
+            "required": false,
+            "helpMarkDown": "Empty out the destination directory before creating links"
+        }        
+    ],
+    "execution": {
+        "Node": {
+            "target": "index.js"
+        }
+    }
+}
