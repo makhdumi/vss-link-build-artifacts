@@ -47,12 +47,12 @@ async function resolveSmbPath(filePath: string, logId: string) {
     return path.join(resolvedRoot, subPath);
 }
 
-async function makeLink(filePath: string, destDir: string, destName: string, logId: string) {
+async function makeLink(filePath: string, destDir: string, destName: string, hardLinks: boolean, logId: string) {
     var localPath = await resolveSmbPath(filePath, logId);
     tl.debug(`${logId}Resolved '${filePath}' to '${localPath}'`);
 
     if (await fse.exists(localPath) == false) {
-        throw Error(localPath + " does not exist")
+        throw Error(`${localPath} does not exist`)
     }
 
     var destPath = path.join(destDir, destName);
@@ -60,15 +60,24 @@ async function makeLink(filePath: string, destDir: string, destName: string, log
 
     var alreadyExists = await fse.exists(destPath);
     if (alreadyExists) {
-        console.log(`Unlinking/deleting existing ${destPath}`)
+        console.log(`Deleting existing ${destPath}`)
         await fse.unlink(destPath);
     }
 
     var pathInfo = await fse.lstat(localPath);
     if (pathInfo.isDirectory()) {
-        console.log(`${logId}Creating symlink/junction from ${localPath} to ${destPath}`);
-        // NTFS exclusive "junction" here gets ignored on non-Windows platforms
-        await fse.symlink(localPath, destPath, "junction");
+
+        if (!hardLinks) {
+            console.log(`${logId}Creating symbolic link from ${localPath} to ${destPath}`);
+            // NTFS exclusive "junction" here gets ignored on non-Windows platforms
+            await fse.symlink(localPath, destPath, "junction");
+        } else {
+            var childFiles = await fse.readdir(localPath);
+            for (var i = 0; i < childFiles.length; i++) {
+                var childLocalPath = path.join(localPath, childFiles[i]);
+                await makeLink(childLocalPath, destPath, childFiles[i], hardLinks, logId);
+            }
+        }
     } else {
         console.log(`${logId}Creating hard link from ${localPath} to ${destPath}`);
         await fse.link(localPath, destPath);
@@ -82,6 +91,10 @@ async function run() {
         var endpointUrl: string = tl.getVariable("System.TeamFoundationCollectionUri");
 
         var destinationDir: string = tl.getInput("destinationDir") || tl.getVariable("System.ArtifactsDirectory");
+
+        var hardLinksOnlyStr: string = tl.getInput("hardLinksOnly");
+        var hardLinksOnly: boolean = hardLinksOnlyStr ? hardLinksOnlyStr.toLocaleLowerCase() == 'true' : false;
+
         var cleanDestinationDirStr: string = tl.getInput("cleanDestinationDir");
         var cleanDestinationDir: boolean = cleanDestinationDirStr ? cleanDestinationDirStr.toLocaleLowerCase() == 'true' : false;
 
@@ -104,9 +117,10 @@ async function run() {
         var makeLinkPromises = Array(artifacts.length);
         for (var i = 0; i < artifacts.length; i++) {
             var res: ArtifactResource = artifacts[i].resource
-            tl.debug(`"Processing artifact: ${artifacts[i].name}`);
+            console.log(`Processing artifact: ${artifacts[i].name}`);
             if (artifacts[i].resource.type != "filepath") {
-                throw new Error("Build artifact " + artifacts[i] + " is not a file share artifact");
+                console.log(`Skipping ${artifacts[i]} because it is not a file share artifact`);
+                continue;
             }
 
             if (artifactNameRegex && !artifactNameRegex.exec(artifacts[i].name)) {
@@ -114,9 +128,9 @@ async function run() {
                 continue;
             }
 
-            console.log(`"Linking build artifact ${artifacts[i].name}`);
+            console.log(`Linking build artifact ${artifacts[i].name}`);
             var fullPath = path.join(artifacts[i].resource.data, artifacts[i].name);
-            makeLinkPromises[i] = makeLink(fullPath, destinationDir, artifacts[i].name, artifacts[i].name + ">");
+            makeLinkPromises[i] = makeLink(fullPath, destinationDir, artifacts[i].name, hardLinksOnly, artifacts[i].name + "> ");
         }
         await Promise.all(makeLinkPromises);
 

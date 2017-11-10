@@ -9,7 +9,7 @@
     "version": {
         "Major": 0,
         "Minor": 0,
-        "Patch": 14
+        "Patch": 15
     },
     "groups": [
         {
@@ -28,13 +28,21 @@
             "helpMarkDown": "Destination directory to create links in, e.g. `$(System.ArtifactsDirectory)`"
         },
         {
+            "name": "hardLinksOnly",
+            "type": "boolean",
+            "label": "Hardlinks only",
+            "defaultValue": "false",
+            "required": false,
+            "helpMarkDown": "Recursively create hardlinks for files in directory artifacts, instead of symlinking"
+        },        
+        {
             "name": "artifactNameRegex",
             "type": "string",
             "label": "Artifact name pattern",
             "defaultValue": "",
             "required": false,
             "helpMarkDown": "Regular expression to filter artifacts by their name, e.g. `(artifact1|artifact2)`. The expression is case-inensitive"
-        },        
+        },
         {
             "name": "cleanDestinationDir",
             "type": "boolean",
